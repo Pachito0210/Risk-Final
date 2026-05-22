@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mapeador de territorios</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #111; color: #fff; font-family: monospace; display: flex; flex-direction: column; height: 100vh; }
+#info { padding: 8px 12px; background: #1f2937; font-size: 12px; display: flex; gap: 20px; align-items: center; flex-shrink: 0; }
+#map-wrap { position: relative; flex: 1; overflow: auto; }
+#map-img { display: block; cursor: crosshair; }
+#overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
+.dot { position: absolute; width: 12px; height: 12px; background: red; border-radius: 50%; transform: translate(-50%,-50%); border: 2px solid white; pointer-events: none; }
+.dot-label { position: absolute; background: rgba(0,0,0,.8); color: #ffd; font-size: 11px; padding: 2px 5px; border-radius: 3px; white-space: nowrap; pointer-events: none; }
+#coords-list { padding: 8px 12px; background: #0f172a; font-size: 11px; max-height: 120px; overflow-y: auto; flex-shrink: 0; }
+pre { color: #86efac; }
+</style>
+</head>
+<body>
+<div id="info">
+  <span>🗺 Haz clic en el centro de cada territorio</span>
+  <span id="xy">x: — y: —</span>
+  <span id="pct">rel: — —</span>
+  <button onclick="clearDots()" style="padding:4px 10px;background:#ef4444;border:none;color:#fff;border-radius:4px;cursor:pointer">Limpiar</button>
+  <button onclick="copyCoords()" style="padding:4px 10px;background:#22c55e;border:none;color:#fff;border-radius:4px;cursor:pointer">Copiar JSON</button>
+</div>
+<div id="map-wrap">
+  <img id="map-img" src="/static/mapa.png" draggable="false">
+  <div id="overlay"></div>
+</div>
+<div id="coords-list"><pre id="coords-pre">// Haz clic en el mapa para registrar coordenadas</pre></div>
+
+<script>
+const img     = document.getElementById('map-img');
+const overlay = document.getElementById('overlay');
+const dots    = [];
+
+img.addEventListener('mousemove', e => {
+  const r = img.getBoundingClientRect();
+  const x = Math.round(e.clientX - r.left);
+  const y = Math.round(e.clientY - r.top);
+  const px = (x / r.width  * 100).toFixed(1);
+  const py = (y / r.height * 100).toFixed(1);
+  document.getElementById('xy').textContent  = `x: ${x} y: ${y}`;
+  document.getElementById('pct').textContent = `rel: ${px}% ${py}%`;
+});
+
+img.addEventListener('click', e => {
+  const r  = img.getBoundingClientRect();
+  const x  = Math.round(e.clientX - r.left);
+  const y  = Math.round(e.clientY - r.top);
+  const px = parseFloat((x / r.width  * 100).toFixed(2));
+  const py = parseFloat((y / r.height * 100).toFixed(2));
+
+  const id = prompt(`Nombre del territorio (ej: CAN, USA...)`);
+  if (!id) return;
+
+  dots.push({ id, x, y, px, py });
+
+  const dot = document.createElement('div');
+  dot.className = 'dot';
+  dot.style.left = x + 'px';
+  dot.style.top  = y + 'px';
+  overlay.appendChild(dot);
+
+  const lbl = document.createElement('div');
+  lbl.className = 'dot-label';
+  lbl.textContent = id;
+  lbl.style.left = (x + 8) + 'px';
+  lbl.style.top  = (y - 8) + 'px';
+  overlay.appendChild(lbl);
+
+  updateList();
+});
+
+function updateList() {
+  const obj = {};
+  dots.forEach(d => { obj[d.id] = [d.px, d.py]; });
+  document.getElementById('coords-pre').textContent = JSON.stringify(obj, null, 2);
+}
+
+function clearDots() {
+  dots.length = 0;
+  overlay.innerHTML = '';
+  document.getElementById('coords-pre').textContent = '// Limpiado';
+}
+
+function copyCoords() {
+  const obj = {};
+  dots.forEach(d => { obj[d.id] = [d.px, d.py]; });
+  navigator.clipboard.writeText(JSON.stringify(obj, null, 2));
+  alert('¡Copiado al portapapeles!');
+}
+</script>
+</body>
+</html>

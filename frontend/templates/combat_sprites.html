@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>RISK — Combat Sprites Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Cinzel:wght@700;900&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════
+   PIXEL ART SPRITE SYSTEM — RISK Combat
+   Estilo: Stardew Valley / Pokémon BW / Octopath
+   ══════════════════════════════════════════════════════════ */
+
+:root {
+  --px: 3px; /* unidad pixel — escala todo */
+
+  /* Paleta pixel art */
+  --ink:    #1a1a2e;
+  --sky:    #16213e;
+  --gold:   #f5a623;
+  --gold2:  #fcd34d;
+  --red:    #e05a3a;
+  --blue:   #4a90d9;
+  --green:  #6dbf6d;
+  --white:  #f0ece1;
+  --shadow: rgba(0,0,0,.6);
+
+  /* Colores de sprites */
+  --soldier-body:   #4a90d9;
+  --soldier-skin:   #f5c5a3;
+  --soldier-helmet: #2c5f8a;
+  --soldier-sword:  #c0c0c0;
+
+  --archer-body:    #7b4f2e;
+  --archer-skin:    #f5c5a3;
+  --archer-hat:     #4a3020;
+  --archer-bow:     #8b6914;
+
+  --knight-body:    #8a8a9a;
+  --knight-visor:   #5a5a6a;
+  --knight-horse:   #8b6914;
+  --knight-lance:   #a0522d;
+
+  --tank-body:      #4a5a3a;
+  --tank-track:     #2a3a2a;
+  --tank-barrel:    #3a4a2a;
+  --tank-hatch:     #5a6a4a;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
+
+body {
+  background: #0d1117;
+  color: #f0ece1;
+  font-family: 'Press Start 2P', monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  min-height: 100vh;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ARENA DE COMBATE
+   ══════════════════════════════════════════════════════════ */
+
+.battle-arena {
+  width: 100%;
+  max-width: 700px;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+  border: 3px solid var(--gold);
+  border-radius: 4px;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 0 0 6px #111, 0 0 0 8px var(--gold);
+}
+
+/* Cielo estrellado */
+.arena-sky {
+  height: 120px;
+  position: relative;
+  background: linear-gradient(180deg, #0a0a1a 0%, #16213e 100%);
+  overflow: hidden;
+}
+.star {
+  position: absolute;
+  width: 2px; height: 2px;
+  background: white;
+  animation: twinkle 2s infinite alternate;
+}
+@keyframes twinkle {
+  from { opacity: .2; }
+  to   { opacity: 1; }
+}
+
+/* Terreno */
+.arena-ground {
+  height: 30px;
+  background: repeating-linear-gradient(
+    90deg,
+    #2d5016 0px, #2d5016 12px,
+    #3a6b1e 12px, #3a6b1e 24px
+  );
+  border-top: 3px solid #1a3a0a;
+  position: relative;
+}
+
+/* Efecto de polvo */
+.dust {
+  position: absolute;
+  bottom: 0;
+  width: 8px; height: 8px;
+  background: rgba(255,220,150,.6);
+  border-radius: 50%;
+  animation: dust-fly .4s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes dust-fly {
+  0%   { transform: translate(0,0) scale(1); opacity: .8; }
+  100% { transform: translate(var(--dx,10px), var(--dy,-20px)) scale(0); opacity: 0; }
+}
+
+/* Panel de combate */
+.arena-panel {
+  background: rgba(10,10,20,.95);
+  padding: 16px 20px;
+  border-top: 3px solid var(--gold);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ══════════════════════════════════════════════════════════
+   SPRITE BASE — pixel art via box-shadow
+   Técnica: cada "pixel" es un box-shadow de 1 unidad
+   ══════════════════════════════════════════════════════════ */
+
+.sprite-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.sprite-canvas {
+  position: relative;
+  display: block;
+  image-rendering: pixelated;
+}
+
+/* Sombra del sprite en el suelo */
+.sprite-shadow {
+  width: 100%;
+  height: 4px;
+  background: radial-gradient(ellipse, rgba(0,0,0,.5) 0%, transparent 70%);
+  border-radius: 50%;
+  margin-top: -4px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   SPRITES PIXEL ART — dibujados con SVG inline
+   (más preciso que box-shadow para personajes complejos)
+   ══════════════════════════════════════════════════════════ */
+
+.px-sprite {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Escala general */
+.sprite-sm  { transform: scale(2.5); transform-origin: bottom center; }
+.sprite-md  { transform: scale(3);   transform-origin: bottom center; }
+.sprite-lg  { transform: scale(3.5); transform-origin: bottom center; }
+.sprite-xl  { transform: scale(4.5); transform-origin: bottom center; }
+
+/* ══════════════════════════════════════════════════════════
+   ANIMACIONES
+   ══════════════════════════════════════════════════════════ */
+
+/* Idle — respiración suave */
+@keyframes idle-bob {
+  0%,100% { transform: var(--base-scale, scale(3)) translateY(0); }
+  50%      { transform: var(--base-scale, scale(3)) translateY(-2px); }
+}
+
+/* Ataque — abalanzarse */
+@keyframes attack-lunge {
+  0%   { transform: var(--base-scale, scale(3)) translateX(0)     rotate(0deg); }
+  25%  { transform: var(--base-scale, scale(3)) translateX(-4px)  rotate(-5deg); }
+  50%  { transform: var(--base-scale, scale(3)) translateX(20px)  rotate(5deg); }
+  75%  { transform: var(--base-scale, scale(3)) translateX(12px)  rotate(2deg); }
+  100% { transform: var(--base-scale, scale(3)) translateX(0)     rotate(0deg); }
+}
+
+/* Daño recibido — retroceso */
+@keyframes hurt-recoil {
+  0%   { transform: var(--base-scale, scale(3)) translateX(0)    rotate(0deg);   filter: none; }
+  20%  { transform: var(--base-scale, scale(3)) translateX(8px)  rotate(8deg);   filter: brightness(3) saturate(0); }
+  50%  { transform: var(--base-scale, scale(3)) translateX(-5px) rotate(-4deg);  filter: brightness(2) hue-rotate(0deg); }
+  80%  { transform: var(--base-scale, scale(3)) translateX(3px)  rotate(2deg);   filter: brightness(1.5); }
+  100% { transform: var(--base-scale, scale(3)) translateX(0)    rotate(0deg);   filter: none; }
+}
+
+/* Victoria — salto de alegría */
+@keyframes victory-jump {
+  0%,100% { transform: var(--base-scale, scale(3)) translateY(0)    rotate(0deg); }
+  20%      { transform: var(--base-scale, scale(3)) translateY(-12px) rotate(-8deg); }
+  40%      { transform: var(--base-scale, scale(3)) translateY(-20px) rotate(0deg); }
+  60%      { transform: var(--base-scale, scale(3)) translateY(-12px) rotate(8deg); }
+  80%      { transform: var(--base-scale, scale(3)) translateY(-4px)  rotate(0deg); }
+}
+
+/* Derrota — caída */
+@keyframes defeat-fall {
+  0%   { transform: var(--base-scale, scale(3)) translateY(0)   rotate(0deg);   opacity: 1; }
+  30%  { transform: var(--base-scale, scale(3)) translateY(-6px) rotate(-10deg); opacity: 1; }
+  60%  { transform: var(--base-scale, scale(3)) translateY(0)   rotate(45deg);  opacity: .8; }
+  80%  { transform: var(--base-scale, scale(3)) translateY(4px)  rotate(80deg);  opacity: .5; }
+  100% { transform: var(--base-scale, scale(3)) translateY(8px)  rotate(90deg);  opacity: .2; }
+}
+
+/* Parpadeo de daño */
+@keyframes flash-hit {
+  0%,100% { filter: none; }
+  25%      { filter: brightness(5) saturate(0); }
+  50%      { filter: none; }
+  75%      { filter: brightness(3) saturate(0); }
+}
+
+/* Efecto de victoria: brillo dorado */
+@keyframes victory-glow {
+  0%,100% { filter: drop-shadow(0 0 0px gold); }
+  50%      { filter: drop-shadow(0 0 12px gold) brightness(1.4); }
+}
+
+/* Tank treads rodando */
+@keyframes tread-roll {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -12; }
+}
+
+/* Caballo galope */
+@keyframes horse-gallop {
+  0%,100% { d: path("M2 8 L4 6 L6 8 L4 10Z"); }
+  50%      { d: path("M2 6 L4 8 L6 6 L4 4Z"); }
+}
+
+/* Flecha del arquero volando */
+@keyframes arrow-fly {
+  0%   { transform: translateX(0) translateY(0) rotate(-30deg); opacity: 1; }
+  100% { transform: translateX(60px) translateY(-20px) rotate(-30deg); opacity: 0; }
+}
+
+/* Destello de espada */
+@keyframes sword-flash {
+  0%,100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  50%      { opacity: 1; transform: scale(1.5) rotate(45deg); }
+}
+
+/* Números de daño flotando */
+@keyframes dmg-float {
+  0%   { transform: translateY(0) scale(1);   opacity: 1; }
+  30%  { transform: translateY(-10px) scale(1.3); opacity: 1; }
+  100% { transform: translateY(-30px) scale(0.8); opacity: 0; }
+}
+
+/* Partículas de impacto */
+@keyframes spark {
+  0%   { transform: translate(0,0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--sx), var(--sy)) scale(0); opacity: 0; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   CLASES DE ESTADO
+   ══════════════════════════════════════════════════════════ */
+.anim-idle    { animation: idle-bob    1.8s ease-in-out infinite; }
+.anim-attack  { animation: attack-lunge .6s ease-in-out; }
+.anim-hurt    { animation: hurt-recoil  .5s ease-out; }
+.anim-victory { animation: victory-jump .5s ease-in-out 3, victory-glow 1s ease-in-out 3; }
+.anim-defeat  { animation: defeat-fall  1.2s ease-in forwards; }
+.anim-flash   { animation: flash-hit    .3s steps(1) 3; }
+
+/* Espejo horizontal para el defensor */
+.mirror { transform-origin: center; scale: -1 1; }
+
+/* ══════════════════════════════════════════════════════════
+   HUD — Barras de vida y nombres
+   ══════════════════════════════════════════════════════════ */
+
+.hud-bar {
+  text-align: center;
+  padding: 4px 8px;
+}
+.hud-name {
+  font-size: 7px;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.hud-name.atk { color: var(--blue); }
+.hud-name.def { color: var(--red); }
+
+.hp-bar-wrap {
+  width: 100%;
+  height: 8px;
+  background: #1a1a2e;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.hp-fill {
+  height: 100%;
+  transition: width .6s ease;
+  border-radius: 1px;
+}
+.hp-fill.atk { background: var(--blue); }
+.hp-fill.def { background: var(--red); }
+
+.hp-fill.low     { background: #f5a623; animation: hp-pulse .5s ease-in-out infinite alternate; }
+.hp-fill.critical{ background: #e05a3a; animation: hp-pulse .3s ease-in-out infinite alternate; }
+@keyframes hp-pulse { from { opacity: .6; } to { opacity: 1; } }
+
+.troop-count {
+  font-size: 8px;
+  color: var(--gold2);
+  margin-top: 4px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   VS BADGE
+   ══════════════════════════════════════════════════════════ */
+.vs-badge {
+  font-family: 'Cinzel', serif;
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--gold);
+  text-align: center;
+  text-shadow: 0 0 20px rgba(245,166,35,.8);
+  animation: vs-pulse 1s ease-in-out infinite alternate;
+}
+@keyframes vs-pulse {
+  from { text-shadow: 0 0 10px rgba(245,166,35,.4); transform: scale(1); }
+  to   { text-shadow: 0 0 25px rgba(245,166,35,.9); transform: scale(1.05); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   EFECTOS VISUALES: chispas, números de daño
+   ══════════════════════════════════════════════════════════ */
+
+.fx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.damage-number {
+  position: absolute;
+  font-size: 10px;
+  font-weight: bold;
+  font-family: 'Press Start 2P', monospace;
+  animation: dmg-float .9s ease-out forwards;
+  pointer-events: none;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+  z-index: 10;
+}
+.damage-number.atk-loss { color: #ff6b6b; }
+.damage-number.def-loss { color: #6bff6b; }
+
+.spark-particle {
+  position: absolute;
+  width: 4px; height: 4px;
+  background: var(--gold);
+  border-radius: 1px;
+  animation: spark .5s ease-out forwards;
+}
+
+/* ══════════════════════════════════════════════════════════
+   RESULTADO FINAL
+   ══════════════════════════════════════════════════════════ */
+
+.result-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 20;
+}
+.result-overlay.show { display: flex; }
+
+.result-banner {
+  font-family: 'Cinzel', serif;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  padding: 12px 32px;
+  border: 3px solid currentColor;
+  animation: banner-in .4s cubic-bezier(.36,1.6,.3,1) forwards;
+  transform: scale(0);
+}
+.result-banner.victory { color: var(--gold); border-color: var(--gold); text-shadow: 0 0 20px var(--gold); }
+.result-banner.defeat  { color: var(--red);  border-color: var(--red);  text-shadow: 0 0 20px var(--red); }
+
+@keyframes banner-in {
+  to { transform: scale(1); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   TERRENO — tiles pixel art
+   ══════════════════════════════════════════════════════════ */
+.arena-stage {
+  height: 140px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 40px 24px;
+  background:
+    /* Montañas silueta */
+    linear-gradient(180deg,
+      transparent 40%,
+      #1a2a10 40%, #1a2a10 55%,
+      #243816 55%, #243816 70%,
+      #2d4a1e 70%
+    );
+  overflow: hidden;
+}
+
+/* Luna pixel art */
+.pixel-moon {
+  position: absolute;
+  top: 12px; right: 60px;
+  width: 20px; height: 20px;
+}
+
+/* Nubes pixel */
+.pixel-cloud {
+  position: absolute;
+  animation: cloud-drift 12s linear infinite;
+}
+@keyframes cloud-drift {
+  from { transform: translateX(200px); }
+  to   { transform: translateX(-200px); }
+}
+
+/* Plataformas de los combatientes */
+.platform {
+  width: 70px; height: 8px;
+  background: repeating-linear-gradient(90deg, #3a6b1e 0px, #3a6b1e 4px, #2d5016 4px, #2d5016 8px);
+  border-top: 2px solid #5a9b2e;
+  border-radius: 2px;
+  position: relative;
+  margin-bottom: -8px;
+}
+
+/* Posición de los sprites */
+.combatant {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+.combatant.attacker { --dir: 1; }
+.combatant.defender { --dir: -1; }
+
+/* Etiqueta flotante sobre el sprite */
+.sprite-label {
+  font-size: 6px;
+  padding: 2px 5px;
+  background: rgba(0,0,0,.8);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 2px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+.sprite-label.atk { color: #93c5fd; border-color: rgba(59,130,246,.4); }
+.sprite-label.def { color: #fca5a5; border-color: rgba(239,68,68,.4); }
+
+/* ══════════════════════════════════════════════════════════
+   DADOS PIXEL ART
+   ══════════════════════════════════════════════════════════ */
+
+.dice-section {
+  background: #0a0a1a;
+  border-top: 2px solid var(--gold);
+  padding: 12px 16px;
+}
+
+.dice-title {
+  font-size: 7px;
+  color: var(--gold);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.dice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dice-label {
+  font-size: 7px;
+  width: 26px;
+  flex-shrink: 0;
+}
+.dice-label.atk { color: #93c5fd; }
+.dice-label.def { color: #fca5a5; }
+
+.pixel-die {
+  width: 32px; height: 32px;
+  background: #f0ece1;
+  border: 2px solid #2c2c2c;
+  border-radius: 3px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.pixel-die.atk-die { background: #dbeafe; border-color: #3b82f6; }
+.pixel-die.def-die { background: #fee2e2; border-color: #ef4444; }
+.pixel-die.won  { border-color: #22c55e; background: #dcfce7; box-shadow: 0 0 0 2px #22c55e; }
+.pixel-die.lost { border-color: #9ca3af; background: #f3f4f6; opacity: .6; }
+
+/* Puntos de dados pixelados */
+.pixel-die svg { width: 24px; height: 24px; }
+.die-dot { fill: #1a1a2e; }
+.die-dot.atk { fill: #1e40af; }
+.die-dot.def { fill: #991b1b; }
+
+/* Animación de rodado */
+@keyframes die-roll {
+  0%  { transform: rotate(0deg)   scale(1);   }
+  20% { transform: rotate(90deg)  scale(.8);  }
+  40% { transform: rotate(180deg) scale(1.1); }
+  60% { transform: rotate(270deg) scale(.9);  }
+  80% { transform: rotate(340deg) scale(1.05);}
+  100%{ transform: rotate(360deg) scale(1);   }
+}
+.pixel-die.rolling { animation: die-roll .5s ease-in-out; }
+
+/* Número en el dado */
+.die-number {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: #1a1a2e;
+  line-height: 1;
+  text-shadow: 1px 1px 0 rgba(255,255,255,.5);
+}
+.pixel-die.atk-die .die-number { color: #1e3a8a; }
+.pixel-die.def-die .die-number { color: #7f1d1d; }
+
+/* Resultado de ronda */
+.round-result-px {
+  font-size: 7px;
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.round-result-px.good { color: #22c55e; }
+.round-result-px.bad  { color: #ef4444; }
+.round-result-px.tie  { color: #f59e0b; }
+
+/* ══════════════════════════════════════════════════════════
+   BOTONES
+   ══════════════════════════════════════════════════════════ */
+.px-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  padding: 8px 16px;
+  background: #1a1a2e;
+  color: var(--gold);
+  border: 2px solid var(--gold);
+  border-radius: 2px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all .1s;
+  display: block;
+  margin: 12px auto 0;
+  image-rendering: pixelated;
+}
+.px-btn:hover { background: var(--gold); color: #1a1a2e; transform: scale(1.05); }
+.px-btn:active { transform: scale(.97); }
+
+/* ══════════════════════════════════════════════════════════
+   LOG DE RONDAS PIXEL
+   ══════════════════════════════════════════════════════════ */
+.round-log-px {
+  max-height: 80px;
+  overflow-y: auto;
+  padding: 4px 0;
+  margin-top: 6px;
+  scrollbar-width: none;
+}
+.log-entry {
+  font-size: 6px;
+  color: var(--muted, #9ca3af);
+  padding: 2px 0;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.log-entry .log-r { color: var(--gold); min-width: 20px; }
+.log-entry .log-good { color: #22c55e; }
+.log-entry .log-bad  { color: #ef4444; }
+
+/* ══════════════════════════════════════════════════════════
+   DEMO CONTROLES
+   ══════════════════════════════════════════════════════════ */
+.demo-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.demo-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  padding: 8px 12px;
+  background: #1a1a2e;
+  border: 1px solid rgba(255,255,255,.2);
+  color: #f0ece1;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.demo-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+.demo-title {
+  font-size: 9px;
+  color: var(--gold);
+  text-align: center;
+  margin-bottom: 16px;
+  letter-spacing: 3px;
+}
+</style>
+</head>
+<body>
+
+<div class="demo-title">⚔ RISK — PIXEL ART COMBAT SYSTEM</div>
+
+<div class="demo-controls">
+  <button class="demo-btn" onclick="setTroops(1,1)">1 vs 1 tropa</button>
+  <button class="demo-btn" onclick="setTroops(3,2)">3 vs 2 tropas</button>
+  <button class="demo-btn" onclick="setTroops(6,4)">6 vs 4 tropas</button>
+  <button class="demo-btn" onclick="setTroops(12,8)">12 vs 8 tropas</button>
+  <button class="demo-btn" onclick="runDemo()">▶ SIMULAR COMBATE</button>
+</div>
+
+<!-- ══ ARENA ══ -->
+<div class="battle-arena" id="arena">
+
+  <!-- Cielo -->
+  <div class="arena-sky" id="sky">
+    <div class="fx-layer" id="fx-layer"></div>
+  </div>
+
+  <!-- Escenario principal -->
+  <div class="arena-stage" id="stage">
+    <div class="fx-layer" id="stage-fx"></div>
+
+    <!-- Atacante -->
+    <div class="combatant attacker" id="atk-combatant">
+      <div class="sprite-label atk" id="atk-label">ATACANTE</div>
+      <div id="atk-sprite-wrap" class="sprite-wrap">
+        <div id="atk-sprite" class="anim-idle"></div>
+        <div class="sprite-shadow"></div>
+      </div>
+      <div class="platform"></div>
+    </div>
+
+    <!-- VS central + efectos -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;z-index:3">
+      <div class="vs-badge" id="vs-text">VS</div>
+      <div id="impact-zone" style="position:relative;width:60px;height:40px"></div>
+    </div>
+
+    <!-- Defensor -->
+    <div class="combatant defender" id="def-combatant">
+      <div class="sprite-label def" id="def-label">DEFENSOR</div>
+      <div id="def-sprite-wrap" class="sprite-wrap">
+        <div id="def-sprite" class="anim-idle" style="transform-origin:center;scale:-1 1"></div>
+        <div class="sprite-shadow"></div>
+      </div>
+      <div class="platform"></div>
+    </div>
+  </div>
+
+  <!-- Terreno -->
+  <div class="arena-ground"></div>
+
+  <!-- HUD Panel -->
+  <div class="arena-panel">
+    <div class="hud-bar">
+      <div class="hud-name atk" id="atk-name">ATACANTE</div>
+      <div class="hp-bar-wrap"><div class="hp-fill atk" id="atk-hp" style="width:100%"></div></div>
+      <div class="troop-count" id="atk-count">— tropas</div>
+    </div>
+    <div class="vs-badge" style="font-size:14px">⚔</div>
+    <div class="hud-bar">
+      <div class="hud-name def" id="def-name" style="text-align:right">DEFENSOR</div>
+      <div class="hp-bar-wrap"><div class="hp-fill def" id="def-hp" style="width:100%"></div></div>
+      <div class="troop-count" style="text-align:right" id="def-count">— tropas</div>
+    </div>
+  </div>
+
+  <!-- Dados -->
+  <div class="dice-section">
+    <div class="dice-title">— COMBATE —</div>
+    <div id="dice-container"></div>
+    <div class="round-log-px" id="round-log-px"></div>
+  </div>
+
+  <!-- Resultado overlay -->
+  <div class="result-overlay" id="result-overlay">
+    <div class="result-banner" id="result-banner">—</div>
+    <button class="px-btn" onclick="closeResult()">▶ CONTINUAR</button>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  SPRITES SVG PIXEL ART
+//  Dibujados pixel a pixel en una cuadrícula de 16x16
+// ══════════════════════════════════════════════════════════
+
+const SPRITES = {
+
+  // ── Soldado (1 tropa) ──────────────────────────────
+  soldier: {
+    scale: 'sprite-md',
+    frames: {
+      idle: `<svg width="16" height="20" viewBox="0 0 16 20" class="px-sprite">
+        <!-- Yelmo -->
+        <rect x="5" y="0" width="6" height="2" fill="#2c5f8a"/>
+        <rect x="4" y="2" width="8" height="3" fill="#3b7ab5"/>
+        <!-- Visera -->
+        <rect x="5" y="3" width="6" height="1" fill="#1a3a5c"/>
+        <!-- Cara -->
+        <rect x="5" y="5" width="6" height="4" fill="#f5c5a3"/>
+        <rect x="6" y="6" width="1" height="1" fill="#8b4513"/>
+        <rect x="9" y="6" width="1" height="1" fill="#8b4513"/>
+        <!-- Cuerpo armadura -->
+        <rect x="4" y="9" width="8" height="5" fill="#4a90d9"/>
+        <rect x="4" y="9" width="8" height="1" fill="#5aa0e9"/>
+        <!-- Espada -->
+        <rect x="13" y="6" width="1" height="8" fill="#c0c0c0"/>
+        <rect x="12" y="9" width="3" height="1" fill="#8b4513"/>
+        <!-- Piernas -->
+        <rect x="5" y="14" width="3" height="4" fill="#2c5f8a"/>
+        <rect x="8" y="14" width="3" height="4" fill="#2c5f8a"/>
+        <!-- Pies -->
+        <rect x="4" y="18" width="4" height="2" fill="#1a1a2e"/>
+        <rect x="8" y="18" width="4" height="2" fill="#1a1a2e"/>
+      </svg>`,
+      attack: `<svg width="16" height="20" viewBox="0 0 16 20" class="px-sprite">
+        <!-- Igual pero con brazo extendido -->
+        <rect x="5" y="0" width="6" height="2" fill="#2c5f8a"/>
+        <rect x="4" y="2" width="8" height="3" fill="#3b7ab5"/>
+        <rect x="5" y="3" width="6" height="1" fill="#1a3a5c"/>
+        <rect x="5" y="5" width="6" height="4" fill="#f5c5a3"/>
+        <rect x="6" y="6" width="1" height="1" fill="#8b4513"/>
+        <rect x="9" y="6" width="1" height="1" fill="#8b4513"/>
+        <rect x="5" y="6" width="1" height="1" fill="#c0392b"/>
+        <rect x="4" y="9" width="8" height="5" fill="#4a90d9"/>
+        <!-- Espada extendida hacia la derecha -->
+        <rect x="12" y="5" width="8" height="1" fill="#c0c0c0"/>
+        <rect x="11" y="8" width="2" height="1" fill="#8b4513"/>
+        <rect x="5" y="14" width="3" height="4" fill="#2c5f8a"/>
+        <rect x="8" y="14" width="3" height="4" fill="#2c5f8a"/>
+        <rect x="4" y="18" width="4" height="2" fill="#1a1a2e"/>
+        <rect x="8" y="18" width="4" height="2" fill="#1a1a2e"/>
+        <!-- Flash de espada -->
+        <rect x="19" y="3" width="3" height="3" fill="#fff" opacity=".8"/>
+      </svg>`,
+    }
+  },
+
+  // ── Arquero (2-4 tropas) ──────────────────────────────
+  archer: {
+    scale: 'sprite-md',
+    frames: {
+      idle: `<svg width="16" height="22" viewBox="0 0 16 22" class="px-sprite">
+        <!-- Sombrero -->
+        <rect x="4" y="0" width="8" height="1" fill="#4a3020"/>
+        <rect x="3" y="1" width="10" height="1" fill="#4a3020"/>
+        <rect x="5" y="2" width="6" height="2" fill="#7b4f2e"/>
+        <!-- Cara -->
+        <rect x="5" y="4" width="6" height="4" fill="#f5c5a3"/>
+        <rect x="6" y="5" width="1" height="1" fill="#4a3020"/>
+        <rect x="9" y="5" width="1" height="1" fill="#4a3020"/>
+        <!-- Cuerpo -->
+        <rect x="4" y="8" width="8" height="6" fill="#7b4f2e"/>
+        <rect x="4" y="8" width="8" height="1" fill="#8b5f3e"/>
+        <!-- Arco (izquierda) -->
+        <rect x="1" y="4" width="1" height="14" fill="#8b6914"/>
+        <rect x="1" y="4" width="3" height="1" fill="#8b6914"/>
+        <rect x="1" y="17" width="3" height="1" fill="#8b6914"/>
+        <!-- Cuerda del arco -->
+        <rect x="2" y="5" width="1" height="12" fill="#c8a87a" opacity=".5"/>
+        <!-- Piernas -->
+        <rect x="5" y="14" width="3" height="5" fill="#4a3020"/>
+        <rect x="8" y="14" width="3" height="5" fill="#4a3020"/>
+        <rect x="4" y="19" width="4" height="2" fill="#2a1a10"/>
+        <rect x="8" y="19" width="4" height="2" fill="#2a1a10"/>
+      </svg>`,
+      attack: `<svg width="20" height="22" viewBox="0 0 20 22" class="px-sprite">
+        <rect x="4" y="0" width="8" height="1" fill="#4a3020"/>
+        <rect x="3" y="1" width="10" height="1" fill="#4a3020"/>
+        <rect x="5" y="2" width="6" height="2" fill="#7b4f2e"/>
+        <rect x="5" y="4" width="6" height="4" fill="#f5c5a3"/>
+        <rect x="6" y="5" width="1" height="1" fill="#4a3020"/>
+        <rect x="9" y="5" width="1" height="1" fill="#4a3020"/>
+        <rect x="4" y="8" width="8" height="6" fill="#7b4f2e"/>
+        <!-- Arco tensado -->
+        <rect x="1" y="3" width="1" height="16" fill="#8b6914"/>
+        <rect x="1" y="3" width="4" height="1" fill="#8b6914"/>
+        <rect x="1" y="18" width="4" height="1" fill="#8b6914"/>
+        <rect x="3" y="4" width="1" height="14" fill="#c8a87a" opacity=".7"/>
+        <!-- Flecha -->
+        <rect x="3" y="10" width="14" height="1" fill="#8b6914"/>
+        <rect x="16" y="9" width="2" height="3" fill="#e05a3a" opacity=".8"/>
+        <rect x="17" y="10" width="3" height="1" fill="#c0c0c0"/>
+        <rect x="5" y="14" width="3" height="5" fill="#4a3020"/>
+        <rect x="8" y="14" width="3" height="5" fill="#4a3020"/>
+        <rect x="4" y="19" width="4" height="2" fill="#2a1a10"/>
+        <rect x="8" y="19" width="4" height="2" fill="#2a1a10"/>
+      </svg>`,
+    }
+  },
+
+  // ── Caballero (5-9 tropas) ──────────────────────────────
+  knight: {
+    scale: 'sprite-lg',
+    frames: {
+      idle: `<svg width="22" height="24" viewBox="0 0 22 24" class="px-sprite">
+        <!-- Caballo (parte trasera) -->
+        <rect x="4" y="14" width="14" height="6" fill="#8b6914"/>
+        <rect x="3" y="15" width="16" height="4" fill="#9b7924"/>
+        <!-- Patas delanteras -->
+        <rect x="5" y="20" width="3" height="4" fill="#7a5810"/>
+        <rect x="5" y="23" width="4" height="1" fill="#4a3020"/>
+        <!-- Patas traseras -->
+        <rect x="14" y="20" width="3" height="4" fill="#7a5810"/>
+        <rect x="13" y="23" width="4" height="1" fill="#4a3020"/>
+        <!-- Cola -->
+        <rect x="17" y="13" width="2" height="5" fill="#7a5810"/>
+        <rect x="18" y="12" width="2" height="3" fill="#6a4a00"/>
+        <!-- Crin -->
+        <rect x="3" y="13" width="1" height="3" fill="#6a4a00"/>
+        <rect x="2" y="14" width="1" height="2" fill="#6a4a00"/>
+        <!-- Armadura del jinete -->
+        <rect x="7" y="6" width="8" height="8" fill="#8a8a9a"/>
+        <rect x="7" y="6" width="8" height="2" fill="#aaaabc"/>
+        <!-- Yelmo con penacho -->
+        <rect x="8" y="0" width="6" height="1" fill="#e05a3a"/>
+        <rect x="8" y="0" width="6" height="1" fill="#e05a3a"/>
+        <rect x="9" y="1" width="4" height="4" fill="#8a8a9a"/>
+        <rect x="8" y="3" width="6" height="3" fill="#7a7a8a"/>
+        <rect x="9" y="4" width="4" height="1" fill="#4a4a5a"/>
+        <!-- Cara -->
+        <rect x="9" y="5" width="4" height="1" fill="#f5c5a3" opacity=".5"/>
+        <!-- Lanza -->
+        <rect x="2" y="4" width="1" height="12" fill="#8b6914"/>
+        <rect x="1" y="3" width="3" height="2" fill="#c0c0c0"/>
+        <!-- Escudo -->
+        <rect x="15" y="7" width="4" height="5" fill="#4a90d9"/>
+        <rect x="16" y="8" width="2" height="3" fill="#f5a623"/>
+      </svg>`,
+      attack: `<svg width="26" height="24" viewBox="0 0 26 24" class="px-sprite">
+        <!-- Caballo en galope -->
+        <rect x="5" y="13" width="14" height="6" fill="#8b6914"/>
+        <rect x="4" y="14" width="16" height="4" fill="#9b7924"/>
+        <!-- Patas en movimiento -->
+        <rect x="3" y="18" width="3" height="5" fill="#7a5810"/>
+        <rect x="3" y="22" width="4" height="1" fill="#4a3020"/>
+        <rect x="8" y="16" width="3" height="7" fill="#7a5810"/>
+        <rect x="7" y="22" width="4" height="1" fill="#4a3020"/>
+        <rect x="14" y="19" width="3" height="4" fill="#7a5810"/>
+        <rect x="13" y="22" width="4" height="1" fill="#4a3020"/>
+        <rect x="18" y="15" width="3" height="7" fill="#7a5810"/>
+        <rect x="17" y="21" width="4" height="1" fill="#4a3020"/>
+        <!-- Crin -->
+        <rect x="3" y="12" width="1" height="4" fill="#6a4a00"/>
+        <!-- Jinete inclinado -->
+        <rect x="7" y="4" width="9" height="9" fill="#8a8a9a"/>
+        <rect x="8" y="1" width="6" height="1" fill="#e05a3a"/>
+        <rect x="9" y="1" width="4" height="4" fill="#8a8a9a"/>
+        <rect x="8" y="3" width="6" height="3" fill="#7a7a8a"/>
+        <rect x="9" y="4" width="4" height="1" fill="#4a4a5a"/>
+        <!-- Lanza extendida al frente -->
+        <rect x="0" y="3" width="14" height="1" fill="#8b6914"/>
+        <rect x="0" y="2" width="2" height="3" fill="#c0c0c0"/>
+        <!-- Flash de impacto -->
+        <rect x="0" y="1" width="3" height="4" fill="#fff" opacity=".6"/>
+        <!-- Escudo -->
+        <rect x="16" y="5" width="4" height="5" fill="#4a90d9"/>
+        <rect x="17" y="6" width="2" height="3" fill="#f5a623"/>
+      </svg>`,
+    }
+  },
+
+  // ── Tanque (10+ tropas) ──────────────────────────────────
+  tank: {
+    scale: 'sprite-xl',
+    frames: {
+      idle: `<svg width="28" height="18" viewBox="0 0 28 18" class="px-sprite">
+        <!-- Orugas -->
+        <rect x="0" y="12" width="28" height="6" fill="#2a3a2a"/>
+        <rect x="1" y="13" width="26" height="4" rx="2" fill="#3a4a3a"/>
+        <!-- Detalles orugas -->
+        <rect x="2" y="14" width="3" height="2" fill="#2a3a2a"/>
+        <rect x="7" y="14" width="3" height="2" fill="#2a3a2a"/>
+        <rect x="12" y="14" width="3" height="2" fill="#2a3a2a"/>
+        <rect x="17" y="14" width="3" height="2" fill="#2a3a2a"/>
+        <rect x="22" y="14" width="3" height="2" fill="#2a3a2a"/>
+        <!-- Ruedas -->
+        <rect x="1" y="13" width="4" height="4" rx="2" fill="#4a5a4a"/>
+        <rect x="23" y="13" width="4" height="4" rx="2" fill="#4a5a4a"/>
+        <!-- Cuerpo principal -->
+        <rect x="2" y="6" width="24" height="6" fill="#4a5a3a"/>
+        <rect x="2" y="6" width="24" height="2" fill="#5a6a4a"/>
+        <!-- Torreta -->
+        <rect x="7" y="2" width="14" height="5" fill="#3a4a2a"/>
+        <rect x="7" y="2" width="14" height="2" fill="#4a5a3a"/>
+        <!-- Escotilla -->
+        <rect x="12" y="1" width="5" height="3" fill="#2a3a2a"/>
+        <rect x="13" y="1" width="3" height="1" fill="#5a6a4a"/>
+        <!-- Cañón -->
+        <rect x="1" y="4" width="14" height="2" fill="#3a4a2a"/>
+        <rect x="0" y="4" width="2" height="2" fill="#2a3a2a"/>
+        <!-- Ametralladora pequeña -->
+        <rect x="20" y="3" width="6" height="1" fill="#3a4a2a"/>
+        <!-- Detalle lateral -->
+        <rect x="3" y="8" width="4" height="2" fill="#5a6a4a"/>
+        <rect x="21" y="8" width="4" height="2" fill="#5a6a4a"/>
+        <!-- Antena -->
+        <rect x="22" y="0" width="1" height="4" fill="#2a3a2a"/>
+        <rect x="21" y="0" width="3" height="1" fill="#2a3a2a"/>
+      </svg>`,
+      attack: `<svg width="32" height="18" viewBox="0 0 32 18" class="px-sprite">
+        <rect x="0" y="12" width="28" height="6" fill="#2a3a2a"/>
+        <rect x="1" y="13" width="26" height="4" rx="2" fill="#3a4a3a"/>
+        <rect x="2" y="14" width="3" height="2" fill="#2a3a2a"/>
+        <rect x="7" y="14" width="3" height="2" fill="#2a3a2a"/>
+        <rect x="12" y="14" width="3" height="2" fill="#2a3a2a"/>
+        <rect x="17" y="14" width="3" height="2" fill="#2a3a2a"/>
+        <rect x="22" y="14" width="3" height="2" fill="#2a3a2a"/>
+        <rect x="1" y="13" width="4" height="4" rx="2" fill="#4a5a4a"/>
+        <rect x="23" y="13" width="4" height="4" rx="2" fill="#4a5a4a"/>
+        <rect x="2" y="6" width="24" height="6" fill="#4a5a3a"/>
+        <rect x="2" y="6" width="24" height="2" fill="#5a6a4a"/>
+        <rect x="7" y="2" width="14" height="5" fill="#3a4a2a"/>
+        <rect x="7" y="2" width="14" height="2" fill="#4a5a3a"/>
+        <rect x="12" y="1" width="5" height="3" fill="#2a3a2a"/>
+        <rect x="13" y="1" width="3" height="1" fill="#5a6a4a"/>
+        <!-- Cañón disparando (más largo) -->
+        <rect x="0" y="3" width="16" height="3" fill="#3a4a2a"/>
+        <rect x="0" y="3" width="2" height="3" fill="#2a3a2a"/>
+        <!-- Llamarada del disparo -->
+        <rect x="28" y="2" width="4" height="5" fill="#f5a623" opacity=".9"/>
+        <rect x="29" y="1" width="3" height="7" fill="#e05a3a" opacity=".7"/>
+        <rect x="30" y="3" width="2" height="3" fill="#fff" opacity=".8"/>
+        <rect x="20" y="3" width="6" height="1" fill="#3a4a2a"/>
+        <rect x="3" y="8" width="4" height="2" fill="#5a6a4a"/>
+        <rect x="21" y="8" width="4" height="2" fill="#5a6a4a"/>
+        <rect x="22" y="0" width="1" height="4" fill="#2a3a2a"/>
+        <rect x="21" y="0" width="3" height="1" fill="#2a3a2a"/>
+      </svg>`,
+    }
+  },
+};
+
+// ══════════════════════════════════════════════════════════
+//  LÓGICA DE ESTADO
+// ══════════════════════════════════════════════════════════
+
+let atkTroops = 5;
+let defTroops = 3;
+let atkMax    = 5;
+let defMax    = 3;
+let simRunning = false;
+
+function getSpriteType(troops) {
+  if (troops >= 10) return 'tank';
+  if (troops >= 5)  return 'knight';
+  if (troops >= 2)  return 'archer';
+  return 'soldier';
+}
+
+function getSpriteScale(troops) {
+  if (troops >= 10) return 'sprite-xl';
+  if (troops >= 5)  return 'sprite-lg';
+  if (troops >= 2)  return 'sprite-md';
+  return 'sprite-md';
+}
+
+function renderSprite(el, troops, frame='idle', mirrored=false) {
+  const type   = getSpriteType(troops);
+  const sprite = SPRITES[type];
+  const html   = sprite.frames[frame] || sprite.frames.idle;
+  const scale  = getSpriteScale(troops);
+
+  el.innerHTML = html;
+  el.className = `anim-idle ${scale}`;
+  if (mirrored) {
+    el.style.cssText = 'display:inline-block; transform-origin:center;';
+    el.firstChild && (el.firstChild.style.transform = 'scaleX(-1)');
+  }
+}
+
+function setTroops(atk, def) {
+  atkTroops = atk; atkMax = atk;
+  defTroops = def; defMax = def;
+  updateHUD();
+  renderSprite(document.getElementById('atk-sprite'), atk, 'idle');
+  renderSprite(document.getElementById('def-sprite'), def, 'idle', true);
+  document.getElementById('dice-container').innerHTML = '';
+  document.getElementById('round-log-px').innerHTML   = '';
+  document.getElementById('result-overlay').classList.remove('show');
+}
+
+function updateHUD() {
+  const atkPct = Math.max(0, atkTroops / atkMax * 100);
+  const defPct = Math.max(0, defTroops / defMax * 100);
+
+  const atkHp  = document.getElementById('atk-hp');
+  const defHp  = document.getElementById('def-hp');
+  atkHp.style.width = atkPct + '%';
+  defHp.style.width = defPct + '%';
+  atkHp.className   = `hp-fill atk${atkPct < 30 ? ' critical' : atkPct < 50 ? ' low' : ''}`;
+  defHp.className   = `hp-fill def${defPct < 30 ? ' critical' : defPct < 50 ? ' low' : ''}`;
+
+  document.getElementById('atk-count').textContent = atkTroops + ' tropas';
+  document.getElementById('def-count').textContent = defTroops + ' tropas';
+}
+
+// ══════════════════════════════════════════════════════════
+//  SIMULACIÓN DE COMBATE
+// ══════════════════════════════════════════════════════════
+
+function rollDie() { return Math.floor(Math.random() * 6) + 1; }
+
+function resolveRound(atk, def) {
+  const nAtk   = Math.min(atk - 1, 3);
+  const nDef   = Math.min(def, 2);
+  const atkD   = Array.from({length: nAtk}, rollDie).sort((a,b) => b-a);
+  const defD   = Array.from({length: nDef}, rollDie).sort((a,b) => b-a);
+  let atkLoss  = 0, defLoss = 0;
+  for (let i = 0; i < Math.min(nAtk, nDef); i++) {
+    atkD[i] > defD[i] ? defLoss++ : atkLoss++;
+  }
+  return { atkDice: atkD, defDice: defD, atkLoss, defLoss };
+}
+
+async function runDemo() {
+  if (simRunning) return;
+  simRunning = true;
+
+  document.getElementById('dice-container').innerHTML = '';
+  document.getElementById('round-log-px').innerHTML   = '';
+  document.getElementById('result-overlay').classList.remove('show');
+
+  let a = atkTroops, d = defTroops;
+  let round = 0;
+
+  // Sprites idle al inicio
+  renderSprite(document.getElementById('atk-sprite'), a, 'idle');
+  renderSprite(document.getElementById('def-sprite'), d, 'idle', true);
+
+  while (a > 1 && d > 0) {
+    round++;
+    const r = resolveRound(a, d);
+
+    // Mostrar dados con animación
+    await showDiceRound(r, round);
+
+    // Animar sprites
+    await animateCombat(r, a, d);
+
+    a -= r.atkLoss;
+    d -= r.defLoss;
+    atkTroops = a;
+    defTroops = d;
+    updateHUD();
+
+    // Actualizar sprites según tropas actuales
+    if (a > 1 && d > 0) {
+      renderSprite(document.getElementById('atk-sprite'), a, 'idle');
+      renderSprite(document.getElementById('def-sprite'), d, 'idle', true);
+    }
+
+    await sleep(200);
+  }
+
+  // Resultado final
+  const won = d === 0;
+  await showFinalResult(won, a, d);
+  simRunning = false;
+}
+
+async function showDiceRound(r, roundNum) {
+  const container = document.getElementById('dice-container');
+  container.innerHTML = '';
+
+  // Fila atacante
+  const atkRow = createDiceRow('atk', 'TÚ', r.atkDice.length);
+  const defRow = createDiceRow('def', 'IA', r.defDice.length);
+  container.appendChild(atkRow.row);
+  container.appendChild(defRow.row);
+
+  // Animar rodado
+  [...atkRow.dies, ...defRow.dies].forEach(d => d.classList.add('rolling'));
+  await sleep(100);
+
+  // Revelar uno a uno
+  for (let i = 0; i < Math.max(r.atkDice.length, r.defDice.length); i++) {
+    await sleep(160);
+    if (atkRow.dies[i]) {
+      atkRow.dies[i].classList.remove('rolling');
+      atkRow.dies[i].querySelector('.die-number').textContent = r.atkDice[i];
+    }
+    if (defRow.dies[i]) {
+      defRow.dies[i].classList.remove('rolling');
+      defRow.dies[i].querySelector('.die-number').textContent = r.defDice[i];
+    }
+  }
+
+  await sleep(100);
+
+  // Colorear ganadores
+  const pairs = Math.min(r.atkDice.length, r.defDice.length);
+  for (let i = 0; i < pairs; i++) {
+    const atkWins = r.atkDice[i] > r.defDice[i];
+    atkRow.dies[i]?.classList.add(atkWins ? 'won' : 'lost');
+    defRow.dies[i]?.classList.add(atkWins ? 'lost' : 'won');
+  }
+
+  // Resultado de ronda en el log
+  addRoundLog(roundNum, r);
+}
+
+function createDiceRow(type, label, count) {
+  const row = document.createElement('div');
+  row.className = 'dice-row';
+
+  const lbl = document.createElement('div');
+  lbl.className = `dice-label ${type}`;
+  lbl.textContent = label;
+  row.appendChild(lbl);
+
+  const dies = [];
+  for (let i = 0; i < count; i++) {
+    const die = document.createElement('div');
+    die.className = `pixel-die ${type}-die`;
+    const num = document.createElement('span');
+    num.className = 'die-number';
+    num.textContent = '?';
+    die.appendChild(num);
+    row.appendChild(die);
+    dies.push(die);
+  }
+
+  // Resultado de ronda
+  return { row, dies };
+}
+
+function addRoundLog(num, r) {
+  const log = document.getElementById('round-log-px');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const good = r.atkLoss < r.defLoss;
+  const bad  = r.atkLoss > r.defLoss;
+  entry.innerHTML = `
+    <span class="log-r">R${num}</span>
+    <span>ATK [${r.atkDice.join(',')}]</span>
+    <span>DEF [${r.defDice.join(',')}]</span>
+    <span class="${good?'log-good':bad?'log-bad':''}">
+      ${good ? `DEF -${r.defLoss}` : bad ? `ATK -${r.atkLoss}` : '1-1'}
+    </span>`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function animateCombat(r, a, d) {
+  const atkEl  = document.getElementById('atk-sprite');
+  const defEl  = document.getElementById('def-sprite');
+  const sfxEl  = document.getElementById('stage-fx');
+
+  // Tipo de sprite para frame de ataque
+  const atkType = getSpriteType(a);
+  const defType = getSpriteType(d);
+
+  // Atacante lanza ataque
+  atkEl.innerHTML  = SPRITES[atkType].frames.attack || SPRITES[atkType].frames.idle;
+  atkEl.className  = `anim-attack ${getSpriteScale(a)}`;
+
+  await sleep(300);
+
+  // Chispas en zona de impacto
+  spawnSparks(sfxEl, 50, 40);
+
+  // Aplicar daño
+  if (r.atkLoss > 0) {
+    atkEl.classList.add('anim-flash');
+    spawnDamageNumber(sfxEl, `-${r.atkLoss}`, 20, 20, 'atk-loss');
+  }
+  if (r.defLoss > 0) {
+    defEl.classList.add('anim-flash');
+    spawnDamageNumber(sfxEl, `-${r.defLoss}`, 80, 20, 'def-loss');
+  }
+
+  await sleep(400);
+
+  // Volver a idle
+  atkEl.classList.remove('anim-attack', 'anim-flash');
+  defEl.classList.remove('anim-flash');
+  atkEl.innerHTML = SPRITES[atkType].frames.idle;
+  atkEl.className = `anim-idle ${getSpriteScale(a)}`;
+}
+
+function spawnSparks(container, x, y) {
+  const angles = [0, 45, 90, 135, 180, 225, 270, 315];
+  angles.forEach(angle => {
+    const spark = document.createElement('div');
+    spark.className = 'spark-particle';
+    const rad  = angle * Math.PI / 180;
+    const dist = 15 + Math.random() * 20;
+    spark.style.left = x + '%';
+    spark.style.top  = y + '%';
+    spark.style.setProperty('--sx', `${Math.cos(rad)*dist}px`);
+    spark.style.setProperty('--sy', `${Math.sin(rad)*dist}px`);
+    spark.style.background = Math.random() > .5 ? '#f5a623' : '#fff';
+    container.appendChild(spark);
+    setTimeout(() => spark.remove(), 500);
+  });
+}
+
+function spawnDamageNumber(container, text, x, y, cls) {
+  const el = document.createElement('div');
+  el.className  = `damage-number ${cls}`;
+  el.textContent = text;
+  el.style.left  = x + '%';
+  el.style.top   = y + '%';
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 900);
+}
+
+async function showFinalResult(won, atkRemaining, defRemaining) {
+  const atkEl  = document.getElementById('atk-sprite');
+  const defEl  = document.getElementById('def-sprite');
+
+  if (won) {
+    // Victoria
+    const type = getSpriteType(atkRemaining);
+    atkEl.className = `anim-victory ${getSpriteScale(atkRemaining)}`;
+    defEl.style.opacity = '.2';
+    defEl.style.transform = 'scaleX(-1) rotate(90deg) translateY(10px)';
+
+    // Estrellas y confeti
+    spawnVictoryFX();
+  } else {
+    // Derrota
+    const type = getSpriteType(atkRemaining);
+    atkEl.className = `anim-defeat ${getSpriteScale(atkRemaining)}`;
+    defEl.className = `anim-victory ${getSpriteScale(defRemaining)}`;
+  }
+
+  await sleep(600);
+
+  const overlay = document.getElementById('result-overlay');
+  const banner  = document.getElementById('result-banner');
+  banner.textContent  = won ? '¡VICTORIA!' : 'DERROTA';
+  banner.className    = `result-banner ${won ? 'victory' : 'defeat'}`;
+  overlay.classList.add('show');
+}
+
+function spawnVictoryFX() {
+  const sky = document.getElementById('sky');
+  const colors = ['#f5a623','#22c55e','#3b82f6','#ef4444','#fff'];
+  for (let i = 0; i < 20; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.style.cssText = `
+        position:absolute;
+        width:4px;height:4px;
+        left:${Math.random()*100}%;
+        top:${Math.random()*100}%;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        animation:dust-fly .8s ease-out forwards;
+        --dx:${(Math.random()-.5)*60}px;
+        --dy:${-20-Math.random()*40}px;
+        image-rendering:pixelated;
+      `;
+      sky.appendChild(el);
+      setTimeout(() => el.remove(), 800);
+    }, i * 60);
+  }
+}
+
+function closeResult() {
+  document.getElementById('result-overlay').classList.remove('show');
+  setTroops(atkMax, defMax);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ══ Estrellas del cielo ══
+(function buildSky() {
+  const sky = document.getElementById('sky');
+  for (let i = 0; i < 40; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    star.style.left  = Math.random()*100 + '%';
+    star.style.top   = Math.random()*100 + '%';
+    star.style.animationDelay = Math.random()*2 + 's';
+    star.style.animationDuration = (1+Math.random()*2) + 's';
+    sky.appendChild(star);
+  }
+})();
+
+// Init
+setTroops(5, 3);
+</script>
+</body>
+</html>
